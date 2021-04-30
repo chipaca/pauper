@@ -7,9 +7,9 @@ import (
 
 // SkipWS returns an index to the first byte that's not whitespace in
 // the sense of the JSON spec, or the length of the buffer.
-func SkipWS(buf []byte) int {
-	for i, c := range buf {
-		switch c {
+func SkipWS(buf []byte, skip int) int {
+	for i := skip; i < len(buf); i++ {
+		switch buf[i] {
 		default:
 			return i
 		case ' ', '\n', '\r', '\t':
@@ -28,8 +28,8 @@ const (
 // just after the closing '"'. `buf` should start with any amount of
 // whitespace and then an opening '"'. The passed-in buffer may be
 // modified in place, and the returned buffer may reference it.
-func GetString(buf []byte) ([]byte, int, error) {
-	skip := SkipWS(buf)
+func GetString(buf []byte, skip int) ([]byte, int, error) {
+	skip = SkipWS(buf, skip)
 	if len(buf) < skip+2 || buf[skip] != '"' {
 		return nil, 0, ErrNoStringHere
 	}
@@ -128,8 +128,8 @@ func u4(buf []byte, start int) rune {
 // GetInt parses a subset of the JSON 'number', namely the 'integer'
 // part of it. If there's a decimal point or an exponent it will
 // fail. If there are too many digits for an int64 it'll fail.
-func GetInt(buf []byte) (int64, int, error) {
-	start := SkipWS(buf)
+func GetInt(buf []byte, skip int) (int64, int, error) {
+	start := SkipWS(buf, skip)
 	i := start
 	if len(buf) <= i {
 		return 0, 0, ErrNoNumberHere

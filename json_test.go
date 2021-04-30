@@ -18,8 +18,13 @@ func TestSkipWS(t *testing.T) {
 		"  two":         2,
 		allWS + "  two": 82,
 	} {
-		got := pauper.SkipWS([]byte(from))
+		got := pauper.SkipWS([]byte(from), 0)
 		if got != expected {
+			t.Errorf("got %d expecting %d", got, expected)
+		}
+
+		got = pauper.SkipWS([]byte("    "+from), 4)
+		if got != 4+expected {
 			t.Errorf("got %d expecting %d", got, expected)
 		}
 	}
@@ -29,8 +34,8 @@ func BenchmarkSkipWS(b *testing.B) {
 	b1 := []byte(allWS)
 	b2 := []byte(allWS + "hello")
 	for i := 0; i < b.N; i++ {
-		pauper.SkipWS(b1)
-		pauper.SkipWS(b2)
+		pauper.SkipWS(b1, 0)
+		pauper.SkipWS(b2, 0)
 	}
 }
 
@@ -44,18 +49,21 @@ func TestGetString(t *testing.T) {
 		`"\u0020"`:          " ",
 		`"\uD83D\uDCA9 hi"`: "💩 hi",
 	} {
-		t.Run(from, func(t *testing.T) {
-			got, i, err := pauper.GetString([]byte(from))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(got) != expected {
-				t.Errorf("GetString(%q) returned %q instead of %q", from, got, expected)
-			}
-			if from[i-1] != '"' {
-				t.Error("(n-1) was not \"")
-			}
-		})
+		for _, pre := range []string{"", "123", "123456"} {
+			t.Run(pre+from, func(t *testing.T) {
+				from := pre + from
+				got, i, err := pauper.GetString([]byte(from), len(pre))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(got) != expected {
+					t.Errorf("GetString(%q) returned %q instead of %q", from, got, expected)
+				}
+				if from[i-1] != '"' {
+					t.Error("(n-1) was not \"")
+				}
+			})
+		}
 	}
 	for _, from := range []string{
 		``,
@@ -65,7 +73,7 @@ func TestGetString(t *testing.T) {
 		`   "`,
 	} {
 		t.Run(from, func(t *testing.T) {
-			_, _, err := pauper.GetString([]byte(from))
+			_, _, err := pauper.GetString([]byte(from), 0)
 			if err != pauper.ErrNoStringHere {
 				t.Errorf("GetString(%q) returned %v instead of %q", from, err, pauper.ErrNoStringHere)
 			}
@@ -75,12 +83,12 @@ func TestGetString(t *testing.T) {
 
 func BenchmarkGetString_noEscapes(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		pauper.GetString([]byte(`"1234567890qwertyuiopasdfghjklzxcvbnm áéíóú"`))
+		pauper.GetString([]byte(`"1234567890qwertyuiopasdfghjklzxcvbnm áéíóú"`), 0)
 	}
 }
 func BenchmarkGetString(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		pauper.GetString([]byte(`"1234567890qwertyuiopasdfghjklzxcvbnm áéíóú \uD83D\uDCA9 \"💩\""`))
+		pauper.GetString([]byte(`"1234567890qwertyuiopasdfghjklzxcvbnm áéíóú \uD83D\uDCA9 \"💩\""`), 0)
 	}
 }
 
@@ -100,7 +108,7 @@ func TestGetInt(t *testing.T) {
 			for _, start := range []string{"", " ", " \n\t\r"} {
 				in := start + from + last
 				t.Run(in, func(t *testing.T) {
-					f, i, e := pauper.GetInt([]byte(in))
+					f, i, e := pauper.GetInt([]byte(in), 0)
 					if e != nil {
 						t.Fatal(e)
 					}
@@ -121,7 +129,7 @@ func TestGetInt(t *testing.T) {
 func BenchmarkGetInt(b *testing.B) {
 	buf := []byte("   -9223372036854775808   ")
 	for i := 0; i < b.N; i++ {
-		pauper.GetInt(buf)
+		pauper.GetInt(buf, 0)
 	}
 }
 
